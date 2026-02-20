@@ -1,5 +1,6 @@
 .build/
 flip.app/
+Resources/AppIcon.icns
 *.o
 *.d
 .DS_Store

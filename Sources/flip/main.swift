@@ -137,6 +137,58 @@ func handlePaste() {
     print("  popped → \"\(preview)\(text.count > 60 ? "…" : "")\"")
 }
 
+// MARK: - Menu bar icon
+
+/// Draws a monochrome template icon that mirrors the app icon design:
+/// three stacked pills on the left, a downward arrow on the right.
+/// Being a template image, macOS recolours it automatically for the
+/// dark/light menu bar and accessibility high-contrast modes.
+func makeMenuBarIcon() -> NSImage {
+    let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
+        NSColor.black.setFill()
+        NSColor.black.setStroke()
+
+        // --- Three stacked pills ---
+        let pillW: CGFloat = 11.0
+        let pillH: CGFloat = 2.5
+        let pillX: CGFloat = 1.0
+        let gap:   CGFloat = 2.5
+        let totalPillsH = 3 * pillH + 2 * gap          // 12.5
+        let baseY = (rect.height - totalPillsH) / 2     // vertical centre
+
+        for i in 0..<3 {
+            let y = baseY + CGFloat(i) * (pillH + gap)
+            let r = NSRect(x: pillX, y: y, width: pillW, height: pillH)
+            NSBezierPath(roundedRect: r, xRadius: pillH / 2, yRadius: pillH / 2).fill()
+        }
+
+        // --- Downward arrow ---
+        let ax: CGFloat = 15.5                          // arrow x centre
+        let atop    = baseY + totalPillsH - 1.5         // shaft start (top)
+        let abottom = baseY + 2.5                       // shaft end   (bottom)
+
+        // Shaft
+        let shaft = NSBezierPath()
+        shaft.lineWidth    = 1.5
+        shaft.lineCapStyle = .round
+        shaft.move(to: NSPoint(x: ax, y: atop))
+        shaft.line(to: NSPoint(x: ax, y: abottom + 2.5))
+        shaft.stroke()
+
+        // Arrowhead pointing downward
+        let head = NSBezierPath()
+        head.move(to: NSPoint(x: ax,        y: abottom))
+        head.line(to: NSPoint(x: ax - 2.0,  y: abottom + 3.0))
+        head.line(to: NSPoint(x: ax + 2.0,  y: abottom + 3.0))
+        head.close()
+        head.fill()
+
+        return true
+    }
+    image.isTemplate = true
+    return image
+}
+
 // MARK: - Event tap
 
 var eventTap: CFMachPort?
@@ -150,12 +202,12 @@ let tapCallback: CGEventTapCallBack = { _, type, event, _ in
 
     guard type == .keyDown else { return Unmanaged.passRetained(event) }
 
-    let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
-    let flags   = event.flags
-    let hasCmd  = flags.contains(.maskCommand)
+    let keyCode  = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
+    let flags    = event.flags
+    let hasCmd   = flags.contains(.maskCommand)
     let hasShift = flags.contains(.maskShift)
-    let hasAlt  = flags.contains(.maskAlternate)
-    let hasCtrl = flags.contains(.maskControl)
+    let hasAlt   = flags.contains(.maskAlternate)
+    let hasCtrl  = flags.contains(.maskControl)
 
     guard hasCmd && hasCtrl && !hasShift && !hasAlt else {
         return Unmanaged.passRetained(event)
@@ -183,10 +235,79 @@ func checkAccessibility() {
 
   ⚠  Accessibility permission required.
      Open System Settings → Privacy & Security → Accessibility
-     and enable your terminal (or this binary).
-     Then re-run flip.
+     and enable flip.
+     Then re-open flip.app.
 
 """)
+    }
+}
+
+// MARK: - App delegate
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    var statusItem: NSStatusItem!
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        setupStatusBar()
+        setupEventTap()
+        print("Running.\n")
+    }
+
+    // MARK: Status bar
+
+    func setupStatusBar() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.button?.image = makeMenuBarIcon()
+
+        let menu = NSMenu()
+        menu.addItem(withTitle: "flip — clipboard stack", action: nil, keyEquivalent: "")
+        menu.addItem(.separator())
+
+        let stackItem = NSMenuItem(title: "Open Stack File",
+                                   action: #selector(openStackFile),
+                                   keyEquivalent: "")
+        stackItem.target = self
+        menu.addItem(stackItem)
+
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Quit flip",
+                     action: #selector(NSApplication.terminate(_:)),
+                     keyEquivalent: "q")
+
+        statusItem.menu = menu
+    }
+
+    @objc func openStackFile() {
+        // Create the file if it doesn't exist yet so Finder/TextEdit can open it.
+        if !FileManager.default.fileExists(atPath: stackFilePath) {
+            FileManager.default.createFile(atPath: stackFilePath, contents: nil)
+        }
+        NSWorkspace.shared.open(URL(fileURLWithPath: stackFilePath))
+    }
+
+    // MARK: Event tap
+
+    func setupEventTap() {
+        let eventMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+
+        eventTap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: eventMask,
+            callback: tapCallback,
+            userInfo: nil
+        )
+
+        guard let tap = eventTap else {
+            print("Failed to create event tap — Accessibility permission not granted.")
+            NSApplication.shared.terminate(nil)
+            return
+        }
+
+        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
     }
 }
 
@@ -200,25 +321,9 @@ flip  —  clipboard stack manager
 
 checkAccessibility()
 
-let eventMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)   // no Dock icon
 
-eventTap = CGEvent.tapCreate(
-    tap: .cgSessionEventTap,
-    place: .headInsertEventTap,
-    options: .defaultTap,
-    eventsOfInterest: eventMask,
-    callback: tapCallback,
-    userInfo: nil
-)
-
-guard let tap = eventTap else {
-    print("Failed to create event tap — Accessibility permission not granted.")
-    exit(1)
-}
-
-let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
-CGEvent.tapEnable(tap: tap, enable: true)
-
-print("Running. Press Ctrl+C to quit.\n")
-CFRunLoopRun()
+let delegate = AppDelegate()
+app.delegate = delegate
+app.run()

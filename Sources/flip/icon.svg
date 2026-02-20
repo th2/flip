@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f5f5f5"/>
+      <stop offset="100%" style="stop-color:#ebebeb"/>
+    </linearGradient>
+    <filter id="pillShadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+    <filter id="topPillShadow">
+      <feDropShadow dx="0" dy="3" stdDeviation="7" flood-color="#f0483e" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- === Pill stack ===
+    5 pills × 44px tall, 12px gap = 268px total
+    Vertically centered: top = (512-268)/2 = 122
+    Pill centers: 144, 200, 256, 312, 368
+  -->
+
+  <!-- Item 5 — oldest, bottom -->
+
+  <rect x="52" y="346" width="350" height="44" rx="22" fill="#e0e0e0" filter="url(#pillShadow)"/>
+  <!-- Item 4 -->
+  <rect x="52" y="290" width="350" height="44" rx="22" fill="#d0d0d0" filter="url(#pillShadow)"/>
+  <!-- Item 3 -->
+  <rect x="52" y="234" width="350" height="44" rx="22" fill="#bdbdbd" filter="url(#pillShadow)"/>
+  <!-- Item 2 -->
+  <rect x="52" y="178" width="350" height="44" rx="22" fill="#9e9e9e" filter="url(#pillShadow)"/>
+  <!-- Item 1 — active, top -->
+  <g filter="url(#topPillShadow)">
+    <rect x="52" y="122" width="350" height="44" rx="22" fill="#f0483e"/>
+    <rect x="82" y="136" width="110" height="8" rx="4" fill="#fff" opacity="0.55"/>
+    <rect x="204" y="136" width="64" height="8" rx="4" fill="#fff" opacity="0.35"/>
+  </g>
+
+  <!-- === Arrow — right side, aligned to pill stack === -->
+
+  <!-- Shaft spans top pill center (144) to bottom pill center (368) -->
+
+  <line x1="456" y1="144" x2="456" y2="368" stroke="#f0483e" stroke-width="9" stroke-linecap="round"/>
+  <!-- Entry dot at top -->
+  <circle cx="456" cy="144" r="19" fill="#f0483e"/>
+  <circle cx="456" cy="144" r="10" fill="#fff"/>
+  <!-- Arrowhead at bottom -->
+  <polygon points="456,400 432,366 480,366" fill="#f0483e"/>
+
+  <!-- Tick marks at pill 2–4 centers: 200, 256, 312 -->
+
+  <line x1="446" y1="200" x2="466" y2="200" stroke="#f0483e" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  <line x1="446" y1="256" x2="466" y2="256" stroke="#f0483e" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="446" y1="312" x2="466" y2="312" stroke="#f0483e" stroke-width="5" stroke-linecap="round" opacity="0.3"/>
+</svg>

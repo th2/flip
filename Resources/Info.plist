@@ -6,6 +6,8 @@
     <string>flip</string>
     <key>CFBundleIdentifier</key>
     <string>com.flip.clipboard</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleName</key>
     <string>flip</string>
     <key>CFBundlePackageType</key>
