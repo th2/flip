@@ -5,6 +5,7 @@ import Cocoa
 let stackFilePath = (NSHomeDirectory() as NSString).appendingPathComponent(".flip_stack.txt")
 
 // Virtual key codes
+let kVK_ANSI_X: CGKeyCode = 7
 let kVK_ANSI_C: CGKeyCode = 8
 let kVK_ANSI_V: CGKeyCode = 9
 
@@ -100,15 +101,12 @@ func postKeystroke(keyCode: CGKeyCode, flags: CGEventFlags) {
 
 // MARK: - Clipboard actions
 
-func handleCopy() {
-    // Snapshot the change count before we trigger the copy so we can detect
-    // whether the target app actually wrote anything new to the pasteboard.
+/// Triggers the given key (C or X) and, once the pasteboard updates, pushes
+/// the resulting text onto the stack.  Handles both copy and cut.
+func pushSelection(via keyCode: CGKeyCode) {
     let changeCountBefore = NSPasteboard.general.changeCount
+    postKeystroke(keyCode: keyCode, flags: .maskCommand)
 
-    // Ask the focused app to copy its selection.
-    postKeystroke(keyCode: kVK_ANSI_C, flags: .maskCommand)
-
-    // Give the app time to process Cmd+C and update the pasteboard.
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
         guard NSPasteboard.general.changeCount != changeCountBefore else {
             print("  (clipboard unchanged — nothing selected?)")
@@ -121,6 +119,9 @@ func handleCopy() {
         appendToStack(text)
     }
 }
+
+func handleCopy() { pushSelection(via: kVK_ANSI_C) }
+func handleCut()  { pushSelection(via: kVK_ANSI_X) }
 
 func handlePaste() {
     guard let text = popFromStack() else {
@@ -216,6 +217,11 @@ let tapCallback: CGEventTapCallBack = { _, type, event, _ in
     if keyCode == kVK_ANSI_C {
         handleCopy()
         return nil   // consume — don't let Cmd+Ctrl+C reach the app
+    }
+
+    if keyCode == kVK_ANSI_X {
+        handleCut()
+        return nil   // consume — don't let Cmd+Ctrl+X reach the app
     }
 
     if keyCode == kVK_ANSI_V {
@@ -315,7 +321,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 print("""
 flip  —  clipboard stack manager
-  Cmd+Ctrl+C   push selection onto stack  →  \(stackFilePath)
+  Cmd+Ctrl+C   copy selection and push onto stack  →  \(stackFilePath)
+  Cmd+Ctrl+X   cut selection and push onto stack
   Cmd+Ctrl+V   pop from stack and paste
 """)
 
